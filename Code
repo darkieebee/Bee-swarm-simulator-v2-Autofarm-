@@ -1,354 +1,724 @@
---[[X7K9P2M4]]
-local a1,b2,c3,d4,e5=game:GetService("Workspace"),game:GetService("Players"),game:GetService("ReplicatedStorage"),game:GetService("CoreGui"),game:GetService("VirtualInputManager"),game:GetService("TweenService")
-local f6=b2.LocalPlayer
-local g7=f6.Character or f6.CharacterAdded:Wait()
-local h8=g7:WaitForChild("HumanoidRootPart")
-local i9=g7:WaitForChild("Humanoid")
-local j0=c3.Events.ToolCollect
-local k1=c3.Events.ClaimHive
-local l2=c3.Events.PlayerHiveCommand
-local m3=a1:WaitForChild("Honeycombs")
-local n4=f6:WaitForChild("CoreStats")
-local o5={}
-for p6,q7 in pairs(a1.FlowerZones:GetChildren())do table.insert(o5,q7.Name)end
-local r8=o5[1]or"Sunflower Field"
-local s9,t0,u1,v2,w3=nil,false,false,30,nil
-local x4=nil
-local y5=nil
-local function z6()
-if y5 then y5:Disconnect()y5=nil end
-y5=b2.LocalPlayer.Idled:Connect(function()e5:SendKeyEvent(true,Enum.KeyCode.Space,false,game)task.wait(0.1)e5:SendKeyEvent(false,Enum.KeyCode.Space,false,game)end)end
-z6()
-local function a7()
-for b8,c9 in pairs(m3:GetChildren())do if tostring(c9.Owner.Value)==tostring(f6.Name)then return c9 end end
-for d0,e1 in pairs(m3:GetChildren())do if e1.Owner.Value==nil then h8.CFrame=e1.SpawnPos.Value+Vector3.new(0,3,0)task.wait(1)k1:FireServer(e1.HiveID.Value)break end end
-task.wait(2)return a7()end
-w3=a7()
-local function b9(f2,g3)
-local h4=g3.Position
-local i5=math.random(h4.X-f2,h4.X+f2)
-local j6=math.random(h4.Z-f2,h4.Z+f2)
-return Vector3.new(i5,h4.Y,j6)end
-local function c0()
-if n4.Pollen.Value==0 then return end
-local d1=h8.Position
-h8.CFrame=w3.SpawnPos.Value+Vector3.new(0,3,0)
-task.wait(1)l2:FireServer("ToggleHoneyMaking")
-local e2=0
-repeat task.wait(1)e2=e2+1 until n4.Pollen.Value==0 or e2>60
-task.wait(6)
-if x4 then h8.CFrame=x4.CFrame+Vector3.new(0,5,0)end end
-local function d2(e3)
-g7=e3
-h8=g7:WaitForChild("HumanoidRootPart")
-i9=g7:WaitForChild("Humanoid")
-task.wait(3)
-if t0 and x4 then h8.CFrame=x4.CFrame+Vector3.new(0,5,0)end end
-f6.CharacterAdded:Connect(d2)
-local function e4()
-t0=true
-u1=true
-local f5=a1.FlowerZones:FindFirstChild(r8)
-if not f5 then return end
-x4=f5
-while t0 do
-h8.CFrame=f5.CFrame+Vector3.new(0,5,0)
-task.wait(0.2)
-local g6=n4.Capacity.Value
-repeat
-local h7=b9(v2,f5.CFrame)
-i9:MoveTo(h7)
-local i8=0
-repeat task.wait()i8=i8+0.1 if n4.Pollen.Value>=g6 then break end until(h8.Position-h7).Magnitude<5 or i8>10
-if n4.Pollen.Value>=g6 then c0()h8.CFrame=f5.CFrame+Vector3.new(0,5,0)task.wait(0.2)end
-until n4.Pollen.Value>=g6 or not t0
-if n4.Pollen.Value>=g6 then c0()end end end
+local Workspace = game:GetService("Workspace")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local CoreGui = game:GetService("CoreGui")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local GuiService = game:GetService("GuiService")
+
+local Player = Players.LocalPlayer
+local Character = Player.Character or Player.CharacterAdded:Wait()
+local HRP = Character:WaitForChild("HumanoidRootPart")
+local Humanoid = Character:WaitForChild("Humanoid")
+
+local toolCollect = ReplicatedStorage.Events.ToolCollect
+local claimHive = ReplicatedStorage.Events.ClaimHive
+local playerHiveCmd = ReplicatedStorage.Events.PlayerHiveCommand
+local Hives = Workspace:WaitForChild("Honeycombs")
+local coreStats = Player:WaitForChild("CoreStats")
+
+local flowerFields = {}
+for _, v in pairs(Workspace.FlowerZones:GetChildren()) do
+    table.insert(flowerFields, v.Name)
+end
+
+local autofarmField = flowerFields[1] or "Sunflower Field"
+local autofarmVar = false
+local autoTool = false
+local autoFarmRadius = 35
+local playerHive = nil
+local currentField = nil
+
+local afkConnection = nil
+
+local function enableAntiAFK()
+    if afkConnection then
+        afkConnection:Disconnect()
+        afkConnection = nil
+    end
+    
+    afkConnection = Player.Idled:Connect(function()
+        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Space, false, game)
+        task.wait(0.1)
+        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Space, false, game)
+    end)
+end
+enableAntiAFK()
+
+local function getPlayerHive()
+    for _, Hive in pairs(Hives:GetChildren()) do
+        if tostring(Hive.Owner.Value) == tostring(Player.Name) then
+            return Hive
+        end
+    end
+    for _, Hive in pairs(Hives:GetChildren()) do
+        if Hive.Owner.Value == nil then
+            HRP.CFrame = Hive.SpawnPos.Value + Vector3.new(0, 3, 0)
+            task.wait(1)
+            claimHive:FireServer(Hive.HiveID.Value)
+            break
+        end
+    end
+    task.wait(2)
+    return getPlayerHive()
+end
+playerHive = getPlayerHive()
+
+local function randomPoint(radius, cf)
+    local p = cf.Position
+    local x = math.random(p.X - radius, p.X + radius)
+    local z = math.random(p.Z - radius, p.Z + radius)
+    local ray = Workspace:Raycast(Vector3.new(x, p.Y + 200, z), Vector3.new(0, -400, 0))
+    if ray then
+        return ray.Position + Vector3.new(0, 3, 0)
+    end
+    return Vector3.new(x, p.Y, z)
+end
+
+local function convert()
+    if coreStats.Pollen.Value == 0 then return end
+    local currentPos = HRP.Position
+    HRP.CFrame = playerHive.SpawnPos.Value + Vector3.new(0, 3, 0)
+    task.wait(1)
+    playerHiveCmd:FireServer("ToggleHoneyMaking")
+    local t = 0
+    repeat task.wait(1) t = t + 1 until coreStats.Pollen.Value == 0 or t > 60
+    task.wait(6)
+    if currentField then
+        HRP.CFrame = currentField.CFrame + Vector3.new(0, 5, 0)
+    end
+end
+
+local function onCharacterAdded(newCharacter)
+    Character = newCharacter
+    HRP = Character:WaitForChild("HumanoidRootPart")
+    Humanoid = Character:WaitForChild("Humanoid")
+    task.wait(3)
+    if autofarmVar and currentField then
+        HRP.CFrame = currentField.CFrame + Vector3.new(0, 5, 0)
+    end
+end
+Player.CharacterAdded:Connect(onCharacterAdded)
+
+local function farm()
+    autofarmVar = true
+    autoTool = true
+    local field = Workspace.FlowerZones:FindFirstChild(autofarmField)
+    if not field then
+        print("Error: Field '" .. autofarmField .. "' not found!")
+        autofarmVar = false
+        autoTool = false
+        return
+    end
+    
+    currentField = field
+    
+    while autofarmVar do
+        HRP.CFrame = field.CFrame + Vector3.new(0, 5, 0)
+        task.wait(0.2)
+        
+        local cap = coreStats.Capacity.Value
+        
+        repeat
+            local pos = randomPoint(autoFarmRadius, field.CFrame)
+            Humanoid:MoveTo(pos)
+            local waitTime = 0
+            repeat 
+                task.wait() 
+                waitTime = waitTime + 0.1
+                if coreStats.Pollen.Value >= cap then
+                    break
+                end
+            until (HRP.Position - pos).Magnitude < 5 or waitTime > 10
+            
+            if coreStats.Pollen.Value >= cap then
+                convert()
+                HRP.CFrame = field.CFrame + Vector3.new(0, 5, 0)
+                task.wait(0.2)
+            end
+            
+        until coreStats.Pollen.Value >= cap or not autofarmVar
+        
+        if coreStats.Pollen.Value >= cap then
+            convert()
+        end
+    end
+end
+
 task.spawn(function()
-while true do
-if u1 then pcall(function()j0:FireServer()end)end
-task.wait()end end)
-local a9=Instance.new("ScreenGui")
-a9.Name="BSSAutoFarmUI"
-a9.ResetOnSpawn=false
-a9.Parent=d4
-local b0=Instance.new("Frame")
-b0.Name="MainControlPanel"
-b0.Size=UDim2.new(0,400,0,250)
-b0.Position=UDim2.new(0.5,-200,0.5,-125)
-b0.BackgroundColor3=Color3.fromRGB(20,15,25)
-b0.Active=true
-b0.Draggable=true
-b0.Parent=a9
-local c1=Instance.new("UICorner")
-c1.CornerRadius=UDim.new(0,12)
-c1.Parent=b0
-local d2=Instance.new("UIStroke")
-d2.Color=Color3.fromRGB(100,60,140)
-d2.Thickness=2
-d2.Parent=b0
-local e3=Instance.new("Frame")
-e3.Name="Header"
-e3.Size=UDim2.new(1,0,0,50)
-e3.Position=UDim2.new(0,0,0,0)
-e3.BackgroundTransparency=1
-e3.Parent=b0
-local f4=Instance.new("TextLabel")
-f4.Name="Title"
-f4.Size=UDim2.new(1,-10,0,25)
-f4.Position=UDim2.new(0,5,0,5)
-f4.BackgroundTransparency=1
-f4.Font=Enum.Font.GothamBlack
-f4.Text="BSS AUTO FARM"
-f4.TextColor3=Color3.fromRGB(255,255,255)
-f4.TextSize=20
-f4.TextXAlignment=Enum.TextXAlignment.Left
-f4.Parent=e3
-local g5=Instance.new("TextLabel")
-g5.Name="Subtitle"
-g5.Size=UDim2.new(1,-10,0,20)
-g5.Position=UDim2.new(0,5,0,25)
-g5.BackgroundTransparency=1
-g5.Font=Enum.Font.GothamMedium
-g5.Text="https://www.youtube.com/@HerDarkiee"
-g5.TextColor3=Color3.fromRGB(180,150,220)
-g5.TextSize=12
-g5.TextXAlignment=Enum.TextXAlignment.Left
-g5.Parent=e3
-local h6=Instance.new("Frame")
-h6.Name="StatusFrame"
-h6.Size=UDim2.new(0,100,0,30)
-h6.Position=UDim2.new(1,-110,0,10)
-h6.BackgroundColor3=Color3.fromRGB(25,20,35)
-h6.Parent=e3
-local i7=Instance.new("UICorner")
-i7.CornerRadius=UDim.new(0,6)
-i7.Parent=h6
-local j8=Instance.new("UIStroke")
-j8.Color=Color3.fromRGB(120,80,160)
-j8.Thickness=1
-j8.Parent=h6
-local k9=Instance.new("TextLabel")
-k9.Name="StatusValue"
-k9.Size=UDim2.new(1,-5,1,0)
-k9.Position=UDim2.new(0,5,0,0)
-k9.BackgroundTransparency=1
-k9.Font=Enum.Font.GothamBold
-k9.Text="Ready"
-k9.TextColor3=Color3.fromRGB(180,150,220)
-k9.TextSize=12
-k9.Parent=h6
-local l0=Instance.new("Frame")
-l0.Name="LeftColumn"
-l0.Size=UDim2.new(0.48,0,0,150)
-l0.Position=UDim2.new(0.02,0,0,60)
-l0.BackgroundTransparency=1
-l0.Parent=b0
-local m1=Instance.new("Frame")
-m1.Name="FieldSection"
-m1.Size=UDim2.new(1,0,0,150)
-m1.Position=UDim2.new(0,0,0,0)
-m1.BackgroundTransparency=1
-m1.Parent=l0
-local n2=Instance.new("TextLabel")
-n2.Name="FieldLabel"
-n2.Size=UDim2.new(1,0,0,25)
-n2.BackgroundTransparency=1
-n2.Font=Enum.Font.GothamSemibold
-n2.Text="SELECT FIELD"
-n2.TextColor3=Color3.fromRGB(200,180,230)
-n2.TextSize=14
-n2.TextXAlignment=Enum.TextXAlignment.Left
-n2.Parent=m1
-local o3=Instance.new("TextButton")
-o3.Name="DropBtn"
-o3.Size=UDim2.new(1,0,0,40)
-o3.Position=UDim2.new(0,0,0,30)
-o3.BackgroundColor3=Color3.fromRGB(30,25,40)
-o3.AutoButtonColor=false
-o3.Font=Enum.Font.GothamMedium
-o3.Text=r8
-o3.TextColor3=Color3.fromRGB(240,240,240)
-o3.TextSize=14
-o3.TextXAlignment=Enum.TextXAlignment.Left
-o3.Parent=m1
-local p4=Instance.new("UICorner")
-p4.CornerRadius=UDim.new(0,8)
-p4.Parent=o3
-local q5=Instance.new("UIStroke")
-q5.Color=Color3.fromRGB(120,80,160)
-q5.Thickness=1
-q5.Parent=o3
-local r6=Instance.new("TextLabel")
-r6.Name="Arrow"
-r6.Size=UDim2.new(0,20,0,20)
-r6.Position=UDim2.new(1,-25,0.5,-10)
-r6.BackgroundTransparency=1
-r6.Font=Enum.Font.GothamBold
-r6.Text="▼"
-r6.TextColor3=Color3.fromRGB(170,140,210)
-r6.TextSize=12
-r6.Parent=o3
-local s7=Instance.new("ScrollingFrame")
-s7.Name="DropList"
-s7.Size=UDim2.new(1,0,0,0)
-s7.Position=UDim2.new(0,0,0,75)
-s7.BackgroundColor3=Color3.fromRGB(25,20,35)
-s7.ScrollBarThickness=4
-s7.ScrollBarImageColor3=Color3.fromRGB(100,70,140)
-s7.BorderSizePixel=0
-s7.Visible=false
-s7.Parent=m1
-local t8=Instance.new("UICorner")
-t8.CornerRadius=UDim.new(0,8)
-t8.Parent=s7
-local u9=Instance.new("UIListLayout")
-u9.Padding=UDim.new(0,2)
-u9.SortOrder=Enum.SortOrder.LayoutOrder
-u9.Parent=s7
-local v0=Instance.new("Frame")
-v0.Name="RightColumn"
-v0.Size=UDim2.new(0.48,0,0,150)
-v0.Position=UDim2.new(0.52,0,0,60)
-v0.BackgroundTransparency=1
-v0.Parent=b0
-local w1=Instance.new("Frame")
-w1.Name="FeaturesFrame"
-w1.Size=UDim2.new(1,0,0,150)
-w1.Position=UDim2.new(0,0,0,0)
-w1.BackgroundColor3=Color3.fromRGB(25,20,35)
-w1.Parent=v0
-local x2=Instance.new("UICorner")
-x2.CornerRadius=UDim.new(0,8)
-x2.Parent=w1
-local y3=Instance.new("UIStroke")
-y3.Color=Color3.fromRGB(100,60,140)
-y3.Thickness=1
-y3.Parent=w1
-local z4=Instance.new("TextLabel")
-z4.Name="FeaturesTitle"
-z4.Size=UDim2.new(1,0,0,30)
-z4.Position=UDim2.new(0,0,0,0)
-z4.BackgroundTransparency=1
-z4.Font=Enum.Font.GothamBlack
-z4.Text="ACTIVE FEATURES"
-z4.TextColor3=Color3.fromRGB(220,200,240)
-z4.TextSize=14
-z4.Parent=w1
-local a5=Instance.new("Frame")
-a5.Name="FeaturesList"
-a5.Size=UDim2.new(1,-10,1,-35)
-a5.Position=UDim2.new(0,5,0,30)
-a5.BackgroundTransparency=1
-a5.Parent=w1
-local b6=Instance.new("UIListLayout")
-b6.Padding=UDim.new(0,2)
-b6.SortOrder=Enum.SortOrder.LayoutOrder
-b6.Parent=a5
-local c7=Instance.new("TextButton")
-c7.Name="MainStartBtn"
-c7.Size=UDim2.new(0.4,0,0,40)
-c7.Position=UDim2.new(0.55,0,1,-50)
-c7.BackgroundColor3=Color3.fromRGB(90,50,140)
-c7.Font=Enum.Font.GothamBlack
-c7.Text="START FARMING"
-c7.TextColor3=Color3.fromRGB(255,255,255)
-c7.TextSize=16
-c7.Parent=b0
-local d8=Instance.new("UICorner")
-d8.CornerRadius=UDim.new(0,8)
-d8.Parent=c7
-local e9=Instance.new("UIStroke")
-e9.Color=Color3.fromRGB(150,100,190)
-e9.Thickness=2
-e9.Parent=c7
-local f0={"✓ Anti-AFK System Active","✓ Auto-Respawn Protection","✓ Smart Auto-Convert","✓ Field Teleportation"}
-for g1,h2 in pairs(f0)do
-local i3=Instance.new("TextLabel")
-i3.Name="Feature"..g1
-i3.Size=UDim2.new(1,0,0,20)
-i3.BackgroundTransparency=1
-i3.Font=Enum.Font.GothamSemibold
-i3.Text=h2
-i3.TextColor3=Color3.fromRGB(180,160,210)
-i3.TextSize=12
-i3.TextXAlignment=Enum.TextXAlignment.Left
-i3.LayoutOrder=g1
-i3.Parent=a5 end
-for j4,k5 in pairs(o5)do
-local l6=Instance.new("TextButton")
-l6.Name="FieldBtn"..j4
-l6.Size=UDim2.new(1,0,0,30)
-l6.BackgroundColor3=Color3.fromRGB(35,30,45)
-l6.AutoButtonColor=false
-l6.Font=Enum.Font.GothamMedium
-l6.Text="  "..k5
-l6.TextColor3=Color3.fromRGB(220,220,220)
-l6.TextSize=12
-l6.TextXAlignment=Enum.TextXAlignment.Left
-l6.LayoutOrder=j4
-l6.Parent=s7
-local m7=Instance.new("UICorner")
-m7.CornerRadius=UDim.new(0,6)
-m7.Parent=l6
-local n8=Instance.new("UIStroke")
-n8.Color=Color3.fromRGB(80,60,120)
-n8.Thickness=1
-n8.Parent=l6
-l6.MouseButton1Click:Connect(function()
-r8=k5
-o3.Text=k5
-s7.Visible=false
-s7.Size=UDim2.new(1,0,0,0)
-r6.Text="▼"end)
-l6.MouseEnter:Connect(function()
-l6.BackgroundColor3=Color3.fromRGB(60,40,80)
-n8.Color=Color3.fromRGB(140,100,180)end)
-l6.MouseLeave:Connect(function()
-l6.BackgroundColor3=Color3.fromRGB(35,30,45)
-n8.Color=Color3.fromRGB(80,60,120)end)end
-local function o9()
-s7.CanvasSize=UDim2.new(0,0,0,#o5*32)end
-o9()
-local p0=false
-o3.MouseButton1Click:Connect(function()
-p0=not p0
-r6.Text=p0 and"▲"or"▼"
-r6.Rotation=p0 and 180 or 0
-local q1=p0 and math.min(#o5*32,150)or 0
-s7:TweenSize(UDim2.new(1,0,0,q1),"Out","Quad",0.2,true)
-s7.Visible=p0 end)
-c7.MouseEnter:Connect(function()
-c7.BackgroundColor3=Color3.fromRGB(110,70,160)end)
-c7.MouseLeave:Connect(function()
-if c7.Text=="START FARMING"then c7.BackgroundColor3=Color3.fromRGB(90,50,140)else c7.BackgroundColor3=Color3.fromRGB(140,30,90)end end)
-c7.MouseButton1Click:Connect(function()
-if t0 then
-t0=false
-u1=false
-c7.Text="START FARMING"
-c7.BackgroundColor3=Color3.fromRGB(90,50,140)
-k9.Text="Stopped"
-k9.TextColor3=Color3.fromRGB(220,100,100)
-else
-if r8 then
-task.spawn(e4)
-c7.Text="STOP FARMING"
-c7.BackgroundColor3=Color3.fromRGB(140,30,90)
-k9.Text="Farming "..r8
-k9.TextColor3=Color3.fromRGB(120,220,120)
-else
-k9.Text="Select Field!"
-k9.TextColor3=Color3.fromRGB(255,200,100)end end end)
-task.spawn(function()
-while task.wait(0.1)do
-if t0 then
-if c7.Text~="STOP FARMING"then
-c7.Text="STOP FARMING"
-c7.BackgroundColor3=Color3.fromRGB(140,30,90)end
-else
-if c7.Text~="START FARMING"then
-c7.Text="START FARMING"
-c7.BackgroundColor3=Color3.fromRGB(90,50,140)end end end end)
-print("🎉X7K9P2M4-LOAD!")
-print("✅MAIN_BUTTON_ACTIVE")
-print("✅ANTI-AFK|RESPAWN|CONVERT:ENABLED")
+    while true do
+        if autoTool then
+            pcall(function() toolCollect:FireServer() end)
+        end
+        task.wait()
+    end
+end)
+
+if CoreGui:FindFirstChild("BSSAutoFarmUI") then
+    CoreGui.BSSAutoFarmUI:Destroy()
+end
+
+local sg = Instance.new("ScreenGui")
+sg.Name = "BSSAutoFarmUI"
+sg.ResetOnSpawn = false
+sg.Parent = CoreGui
+sg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+local C_DARK_BG = Color3.fromRGB(27, 27, 30)
+local C_PRIMARY_BG = Color3.fromRGB(40, 40, 45)
+local C_SECONDARY_BG = Color3.fromRGB(55, 55, 60)
+local C_ACCENT = Color3.fromRGB(122, 66, 244)
+local C_ACCENT_LIGHT = Color3.fromRGB(150, 100, 255)
+local C_TEXT_LIGHT = Color3.fromRGB(240, 240, 240)
+local C_TEXT_DIM = Color3.fromRGB(170, 170, 180)
+local C_RED = Color3.fromRGB(200, 50, 50)
+local C_GREEN = Color3.fromRGB(50, 200, 50)
+local C_SEPARATOR = Color3.fromRGB(70, 70, 75)
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 500, 0, 320)
+mainFrame.Position = UDim2.new(0.5, -250, 0.5, -160)
+mainFrame.BackgroundColor3 = C_DARK_BG
+mainFrame.BackgroundTransparency = 0.01 
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.ZIndex = 2
+mainFrame.Parent = sg
+
+local mainUc = Instance.new("UICorner")
+mainUc.CornerRadius = UDim.new(0, 12)
+mainUc.Parent = mainFrame
+
+local mainUs = Instance.new("UIStroke")
+mainUs.Color = Color3.fromRGB(60, 60, 65)
+mainUs.Thickness = 2
+mainUs.Parent = mainFrame
+
+local header = Instance.new("Frame")
+header.Name = "Header"
+header.Size = UDim2.new(1, 0, 0, 40)
+header.BackgroundColor3 = C_PRIMARY_BG
+header.BackgroundTransparency = 0.01
+header.Parent = mainFrame
+
+local headerUc = Instance.new("UICorner")
+headerUc.CornerRadius = UDim.new(0, 12)
+headerUc.Parent = header
+
+local headerPadd = Instance.new("UIPadding")
+headerPadd.PaddingLeft = UDim.new(0, 15)
+headerPadd.PaddingRight = UDim.new(0, 10)
+headerPadd.Parent = header
+
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Name = "Title"
+titleLabel.Size = UDim2.new(0.7, 0, 1, 0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Font = Enum.Font.GothamBlack
+titleLabel.Text = "BSS AUTO FARM"
+titleLabel.TextColor3 = C_TEXT_LIGHT
+titleLabel.TextSize = 18
+titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+titleLabel.Parent = header
+
+local minimizeBtn = Instance.new("TextButton")
+minimizeBtn.Name = "MinimizeBtn"
+minimizeBtn.Size = UDim2.new(0, 25, 0, 25)
+minimizeBtn.Position = UDim2.new(1, -60, 0.5, -12.5)
+minimizeBtn.BackgroundColor3 = C_SECONDARY_BG
+minimizeBtn.BackgroundTransparency = 0.01
+minimizeBtn.Font = Enum.Font.GothamBold
+minimizeBtn.Text = "−"
+minimizeBtn.TextColor3 = C_TEXT_DIM
+minimizeBtn.TextSize = 20
+minimizeBtn.Parent = header
+
+local minUc = Instance.new("UICorner")
+minUc.CornerRadius = UDim.new(0, 6)
+minUc.Parent = minimizeBtn
+
+local closeBtn = Instance.new("TextButton")
+closeBtn.Name = "CloseBtn"
+closeBtn.Size = UDim2.new(0, 25, 0, 25)
+closeBtn.Position = UDim2.new(1, -30, 0.5, -12.5)
+closeBtn.BackgroundColor3 = C_RED
+closeBtn.BackgroundTransparency = 0.01
+closeBtn.Font = Enum.Font.GothamBold
+closeBtn.Text = "X"
+closeBtn.TextColor3 = C_TEXT_LIGHT
+closeBtn.TextSize = 14
+closeBtn.Parent = header
+
+local closeUc = Instance.new("UICorner")
+closeUc.CornerRadius = UDim.new(0, 6)
+closeUc.Parent = closeBtn
+
+local contentWrapper = Instance.new("Frame")
+contentWrapper.Name = "ContentWrapper"
+contentWrapper.Size = UDim2.new(1, 0, 1, -40)
+contentWrapper.Position = UDim2.new(0, 0, 0, 40)
+contentWrapper.BackgroundTransparency = 1
+contentWrapper.Parent = mainFrame
+
+local tabContainer = Instance.new("Frame")
+tabContainer.Name = "TabContainer"
+tabContainer.Size = UDim2.new(0, 120, 1, 0)
+tabContainer.BackgroundColor3 = C_PRIMARY_BG
+tabContainer.BackgroundTransparency = 0.01
+tabContainer.Parent = contentWrapper
+
+local tabLayout = Instance.new("UIListLayout")
+tabLayout.Padding = UDim.new(0, 10)
+tabLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+tabLayout.SortOrder = Enum.SortOrder.LayoutOrder
+tabLayout.Parent = tabContainer
+
+local tabPadd = Instance.new("UIPadding")
+tabPadd.PaddingTop = UDim.new(0, 15)
+tabPadd.Parent = tabContainer
+
+local pageContainer = Instance.new("Frame")
+pageContainer.Name = "PageContainer"
+pageContainer.Size = UDim2.new(1, -120, 1, 0)
+pageContainer.Position = UDim2.new(0, 120, 0, 0)
+pageContainer.BackgroundTransparency = 1 
+pageContainer.ClipsDescendants = false 
+pageContainer.Parent = contentWrapper
+
+local pagePadd = Instance.new("UIPadding")
+pagePadd.PaddingTop = UDim.new(0, 15)
+pagePadd.PaddingBottom = UDim.new(0, 15)
+pagePadd.PaddingLeft = UDim.new(0, 20)
+pagePadd.PaddingRight = UDim.new(0, 20)
+pagePadd.Parent = pageContainer
+
+local allTabButtons = {}
+local allPages = {}
+
+local function createTabButton(name)
+    local btn = Instance.new("TextButton")
+    btn.Name = name .. "Tab"
+    btn.Size = UDim2.new(1, -20, 0, 40)
+    btn.BackgroundColor3 = C_PRIMARY_BG 
+    btn.BackgroundTransparency = 0.01
+    btn.Font = Enum.Font.GothamBold
+    btn.Text = string.upper(name)
+    btn.TextColor3 = C_TEXT_DIM
+    btn.TextSize = 16
+    btn.Parent = tabContainer
+    
+    local uc = Instance.new("UICorner")
+    uc.CornerRadius = UDim.new(0, 8)
+    uc.Parent = btn
+    
+    table.insert(allTabButtons, btn)
+    return btn
+end
+
+local function createPage()
+    local page = Instance.new("Frame")
+    page.Size = UDim2.new(1, 0, 1, 0)
+    page.BackgroundTransparency = 1 
+    page.Visible = false 
+    page.Parent = pageContainer
+    
+    local pageListLayout = Instance.new("UIListLayout")
+    pageListLayout.Padding = UDim.new(0, 10) 
+    pageListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    pageListLayout.Parent = page
+    
+    table.insert(allPages, page)
+    return page
+end
+
+local function switchTab(selectedBtn)
+    for _, btn in pairs(allTabButtons) do
+        btn.BackgroundColor3 = C_PRIMARY_BG
+        btn.TextColor3 = C_TEXT_DIM
+    end
+    for _, page in pairs(allPages) do
+        page.Visible = false
+    end
+    
+    selectedBtn.BackgroundColor3 = C_ACCENT
+    selectedBtn.TextColor3 = C_TEXT_LIGHT
+    local pageName = selectedBtn.Name:gsub("Tab", "Page")
+    local page = pageContainer:FindFirstChild(pageName)
+    if page then
+        page.Visible = true
+    end
+end
+
+local page1_Farm = createPage()
+page1_Farm.Name = "FarmPage"
+local tab1_Farm = createTabButton("Farm")
+tab1_Farm.BackgroundColor3 = C_ACCENT
+tab1_Farm.TextColor3 = C_TEXT_LIGHT
+page1_Farm.Visible = true
+
+local mainStartBtn = Instance.new("TextButton")
+mainStartBtn.Name = "MainStartBtn"
+mainStartBtn.Size = UDim2.new(1, 0, 0, 45)
+mainStartBtn.BackgroundColor3 = C_ACCENT
+mainStartBtn.BackgroundTransparency = 0.01
+mainStartBtn.Font = Enum.Font.GothamBlack
+mainStartBtn.Text = "START FARMING"
+mainStartBtn.TextColor3 = C_TEXT_LIGHT
+mainStartBtn.TextSize = 18
+mainStartBtn.Parent = page1_Farm
+
+local startUc = Instance.new("UICorner")
+startUc.CornerRadius = UDim.new(0, 8)
+startUc.Parent = mainStartBtn
+
+local statusGroup = Instance.new("Frame")
+statusGroup.Name = "StatusGroup"
+statusGroup.Size = UDim2.new(1, 0, 0, 75)
+statusGroup.BackgroundColor3 = C_SECONDARY_BG
+statusGroup.BackgroundTransparency = 0.01
+statusGroup.Parent = page1_Farm
+
+local statusGroupUc = Instance.new("UICorner")
+statusGroupUc.CornerRadius = UDim.new(0, 8)
+statusGroupUc.Parent = statusGroup
+
+local statusGroupPadd = Instance.new("UIPadding")
+statusGroupPadd.PaddingTop = UDim.new(0, 8)
+statusGroupPadd.PaddingBottom = UDim.new(0, 8)
+statusGroupPadd.PaddingLeft = UDim.new(0, 10)
+statusGroupPadd.PaddingRight = UDim.new(0, 10)
+statusGroupPadd.Parent = statusGroup
+
+local statusGroupLayout = Instance.new("UIListLayout")
+statusGroupLayout.Padding = UDim.new(0, 5)
+statusGroupLayout.SortOrder = Enum.SortOrder.LayoutOrder
+statusGroupLayout.Parent = statusGroup
+
+local statusFrame = Instance.new("Frame")
+statusFrame.Size = UDim2.new(1, 0, 0, 20)
+statusFrame.BackgroundTransparency = 1
+statusFrame.Parent = statusGroup
+
+local statusTitle = Instance.new("TextLabel")
+statusTitle.Size = UDim2.new(0.3, 0, 1, 0)
+statusTitle.BackgroundTransparency = 1
+statusTitle.Font = Enum.Font.GothamBold
+statusTitle.Text = "STATUS:"
+statusTitle.TextColor3 = C_TEXT_DIM
+statusTitle.TextSize = 14
+statusTitle.TextXAlignment = Enum.TextXAlignment.Left
+statusTitle.Parent = statusFrame
+
+local statusValue = Instance.new("TextLabel")
+statusValue.Name = "StatusValue"
+statusValue.Size = UDim2.new(0.7, 0, 1, 0)
+statusValue.Position = UDim2.new(0.3, 0, 0, 0)
+statusValue.BackgroundTransparency = 1
+statusValue.Font = Enum.Font.GothamBold
+statusValue.Text = "Ready"
+statusValue.TextColor3 = C_TEXT_DIM
+statusValue.TextSize = 14
+statusValue.TextXAlignment = Enum.TextXAlignment.Right
+statusValue.Parent = statusFrame
+
+local pollenLabel = Instance.new("TextLabel")
+pollenLabel.Name = "PollenLabel"
+pollenLabel.Size = UDim2.new(1, 0, 0, 15)
+pollenLabel.BackgroundTransparency = 1
+pollenLabel.Font = Enum.Font.GothamMedium
+pollenLabel.Text = "Pollen: 0 / 0"
+pollenLabel.TextColor3 = C_TEXT_LIGHT
+pollenLabel.TextSize = 14
+pollenLabel.TextXAlignment = Enum.TextXAlignment.Left
+pollenLabel.Parent = statusGroup
+
+local pollenBarBG = Instance.new("Frame")
+pollenBarBG.Name = "PollenBarBG"
+pollenBarBG.Size = UDim2.new(1, 0, 0, 12)
+pollenBarBG.BackgroundColor3 = C_DARK_BG
+pollenBarBG.BackgroundTransparency = 0.01
+pollenBarBG.Parent = statusGroup
+
+local barUc = Instance.new("UICorner")
+barUc.CornerRadius = UDim.new(0, 6)
+barUc.Parent = pollenBarBG
+
+local pollenBarFG = Instance.new("Frame")
+pollenBarFG.Name = "PollenBarFG"
+pollenBarFG.Size = UDim2.new(0, 0, 1, 0)
+pollenBarFG.BackgroundColor3 = C_ACCENT
+pollenBarFG.BackgroundTransparency = 0.01
+pollenBarFG.Parent = pollenBarBG
+
+local barFgUc = Instance.new("UICorner")
+barFgUc.CornerRadius = UDim.new(0, 6)
+barFgUc.Parent = pollenBarFG
+
+local separator = Instance.new("Frame")
+separator.Size = UDim2.new(1, 0, 0, 2)
+separator.BackgroundColor3 = C_SEPARATOR
+separator.BackgroundTransparency = 0.01
+separator.Parent = page1_Farm
+
+local settingsGroup = Instance.new("Frame")
+settingsGroup.Name = "SettingsGroup"
+settingsGroup.Size = UDim2.new(1, 0, 0, 65)
+settingsGroup.BackgroundColor3 = C_SECONDARY_BG
+settingsGroup.BackgroundTransparency = 0.01
+settingsGroup.Parent = page1_Farm
+
+local settingsGroupUc = Instance.new("UICorner")
+settingsGroupUc.CornerRadius = UDim.new(0, 8)
+settingsGroupUc.Parent = settingsGroup
+
+local settingsGroupPadd = Instance.new("UIPadding")
+settingsGroupPadd.PaddingTop = UDim.new(0, 8)
+settingsGroupPadd.PaddingBottom = UDim.new(0, 8)
+settingsGroupPadd.PaddingLeft = UDim.new(0, 10)
+settingsGroupPadd.PaddingRight = UDim.new(0, 10)
+settingsGroupPadd.Parent = settingsGroup
+
+local settingsGroupLayout = Instance.new("UIListLayout")
+settingsGroupLayout.Padding = UDim.new(0, 5)
+settingsGroupLayout.SortOrder = Enum.SortOrder.LayoutOrder
+settingsGroupLayout.Parent = settingsGroup
+
+local fieldLabel = Instance.new("TextLabel")
+fieldLabel.Name = "FieldLabel"
+fieldLabel.Size = UDim2.new(1, 0, 0, 15)
+fieldLabel.BackgroundTransparency = 1
+fieldLabel.Font = Enum.Font.GothamSemibold
+fieldLabel.Text = "SELECT FIELD"
+fieldLabel.TextColor3 = C_TEXT_DIM
+fieldLabel.TextSize = 14
+fieldLabel.TextXAlignment = Enum.TextXAlignment.Left
+fieldLabel.Parent = settingsGroup
+
+local dropBtn = Instance.new("TextButton")
+dropBtn.Name = "DropBtn"
+dropBtn.Size = UDim2.new(1, 0, 0, 35)
+dropBtn.BackgroundColor3 = C_DARK_BG
+dropBtn.BackgroundTransparency = 0.01
+dropBtn.AutoButtonColor = false
+dropBtn.Font = Enum.Font.GothamMedium
+dropBtn.Text = autofarmField
+dropBtn.TextColor3 = C_TEXT_LIGHT
+dropBtn.TextSize = 15
+dropBtn.TextXAlignment = Enum.TextXAlignment.Left
+dropBtn.Parent = settingsGroup
+
+local dropPadd = Instance.new("UIPadding")
+dropPadd.PaddingLeft = UDim.new(0, 10)
+dropPadd.Parent = dropBtn
+
+local dropUc = Instance.new("UICorner")
+dropUc.CornerRadius = UDim.new(0, 8)
+dropUc.Parent = dropBtn
+
+local arrow = Instance.new("TextLabel")
+arrow.Name = "Arrow"
+arrow.Size = UDim2.new(0, 20, 0, 20)
+arrow.Position = UDim2.new(1, -25, 0.5, -10)
+arrow.BackgroundTransparency = 1
+arrow.Font = Enum.Font.GothamBold
+arrow.Text = "▼"
+arrow.TextColor3 = C_ACCENT
+arrow.TextSize = 12
+arrow.Parent = dropBtn
+
+local dropdownFrame = Instance.new("Frame")
+dropdownFrame.Name = "DropdownFrame"
+dropdownFrame.Size = UDim2.new(0, 340, 0, 150)
+dropdownFrame.Position = UDim2.new(0, 0, 1, 5)
+dropdownFrame.BackgroundColor3 = C_DARK_BG
+dropdownFrame.BackgroundTransparency = 0.01
+dropdownFrame.Visible = false
+dropdownFrame.ZIndex = 3
+dropdownFrame.Parent = dropBtn
+
+local dropdownUc = Instance.new("UICorner")
+dropdownUc.CornerRadius = UDim.new(0, 8)
+dropdownUc.Parent = dropdownFrame
+
+local dropdownUs = Instance.new("UIStroke")
+dropdownUs.Color = Color3.fromRGB(60, 60, 65)
+dropdownUs.Thickness = 1
+dropdownUs.Parent = dropdownFrame
+
+local dropdownList = Instance.new("UIListLayout")
+dropdownList.Padding = UDim.new(0, 5)
+dropdownList.SortOrder = Enum.SortOrder.LayoutOrder
+dropdownList.Parent = dropdownFrame
+
+local dropdownPadd = Instance.new("UIPadding")
+dropdownPadd.PaddingTop = UDim.new(0, 5)
+dropdownPadd.PaddingBottom = UDim.new(0, 5)
+dropdownPadd.PaddingLeft = UDim.new(0, 5)
+dropdownPadd.PaddingRight = UDim.new(0, 5)
+dropdownPadd.Parent = dropdownFrame
+
+local dropdownScroll = Instance.new("ScrollingFrame")
+dropdownScroll.Size = UDim2.new(1, 0, 1, 0)
+dropdownScroll.BackgroundTransparency = 1
+dropdownScroll.ScrollBarThickness = 4
+dropdownScroll.ScrollBarImageColor3 = C_ACCENT
+dropdownScroll.CanvasSize = UDim2.new(0, 0, 0, #flowerFields * 35)
+dropdownScroll.Parent = dropdownFrame
+
+local scrollList = Instance.new("UIListLayout")
+scrollList.Padding = UDim.new(0, 5)
+scrollList.SortOrder = Enum.SortOrder.LayoutOrder
+scrollList.Parent = dropdownScroll
+
+for _, field in pairs(flowerFields) do
+    local fieldBtn = Instance.new("TextButton")
+    fieldBtn.Size = UDim2.new(1, -10, 0, 30)
+    fieldBtn.BackgroundColor3 = C_SECONDARY_BG
+    fieldBtn.BackgroundTransparency = 0.01
+    fieldBtn.Font = Enum.Font.GothamMedium
+    fieldBtn.Text = field
+    fieldBtn.TextColor3 = C_TEXT_LIGHT
+    fieldBtn.TextSize = 14
+    fieldBtn.TextXAlignment = Enum.TextXAlignment.Left
+    fieldBtn.Parent = dropdownScroll
+    
+    local fieldUc = Instance.new("UICorner")
+    fieldUc.CornerRadius = UDim.new(0, 6)
+    fieldUc.Parent = fieldBtn
+    
+    local fieldPadd = Instance.new("UIPadding")
+    fieldPadd.PaddingLeft = UDim.new(0, 10)
+    fieldPadd.Parent = fieldBtn
+    
+    fieldBtn.MouseButton1Click:Connect(function()
+        autofarmField = field
+        dropBtn.Text = field
+        dropdownFrame.Visible = false
+        arrow.Text = "▼"
+    end)
+end
+
+local page2_Info = createPage()
+page2_Info.Name = "InfoPage"
+local tab2_Info = createTabButton("Info")
+
+local infoTitle = Instance.new("TextLabel")
+infoTitle.Size = UDim2.new(1, 0, 0, 20)
+infoTitle.BackgroundTransparency = 1
+infoTitle.Font = Enum.Font.GothamBlack
+infoTitle.Text = "ACTIVE FEATURES"
+infoTitle.TextColor3 = C_TEXT_LIGHT
+infoTitle.TextSize = 16
+infoTitle.TextXAlignment = Enum.TextXAlignment.Left
+infoTitle.Parent = page2_Info
+
+local function createFeatureInfo(name)
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, 0, 0, 20)
+    label.BackgroundTransparency = 1
+    label.Font = Enum.Font.GothamMedium
+    label.Text = "• " .. name .. " (Enabled)"
+    label.TextColor3 = C_TEXT_DIM
+    label.TextSize = 14
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = page2_Info
+end
+createFeatureInfo("Anti-AFK System")
+createFeatureInfo("Auto-Convert")
+createFeatureInfo("Auto-Respawn")
+createFeatureInfo("Auto-Tool")
+
+local credits = Instance.new("TextLabel")
+credits.Size = UDim2.new(1, 0, 0, 20)
+credits.Position = UDim2.new(0, 0, 1, -20)
+credits.BackgroundTransparency = 1
+credits.Font = Enum.Font.GothamMedium
+credits.Text = "Script by BSS Community | Version 1.0 | BSS Auto Farm"
+credits.TextColor3 = C_TEXT_DIM
+credits.TextSize = 14
+credits.TextXAlignment = Enum.TextXAlignment.Left
+credits.Parent = page2_Info
+
+for _, btn in pairs(allTabButtons) do
+    btn.MouseButton1Click:Connect(function()
+        switchTab(btn)
+    end)
+end
+
+local isMinimized = false
+minimizeBtn.MouseButton1Click:Connect(function()
+    isMinimized = not isMinimized
+    contentWrapper.Visible = not isMinimized
+    mainFrame.Size = isMinimized and UDim2.new(0, 500, 0, 40) or UDim2.new(0, 500, 0, 320)
+    minimizeBtn.Text = isMinimized and "+" or "−"
+end)
+
+closeBtn.MouseButton1Click:Connect(function()
+    sg:Destroy()
+    autofarmVar = false
+    autoTool = false
+    if afkConnection then
+        afkConnection:Disconnect()
+    end
+end)
+
+mainStartBtn.MouseButton1Click:Connect(function()
+    if not autofarmVar then
+        mainStartBtn.Text = "STOP FARMING"
+        mainStartBtn.BackgroundColor3 = C_RED
+        statusValue.Text = "Farming"
+        statusValue.TextColor3 = C_GREEN
+        task.spawn(farm)
+    else
+        autofarmVar = false
+        autoTool = false
+        mainStartBtn.Text = "START FARMING"
+        mainStartBtn.BackgroundColor3 = C_ACCENT
+        statusValue.Text = "Ready"
+        statusValue.TextColor3 = C_TEXT_DIM
+    end
+end)
+
+dropBtn.MouseButton1Click:Connect(function()
+    dropdownFrame.Visible = not dropdownFrame.Visible
+    arrow.Text = dropdownFrame.Visible and "▲" or "▼"
+end)
+
+UserInputService.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 and dropdownFrame.Visible then
+        local mousePos = input.Position
+        local guiInset = GuiService:GetGuiInset()
+        local absPos = dropdownFrame.AbsolutePosition + guiInset
+        local absSize = dropdownFrame.AbsoluteSize
+        if mousePos.X < absPos.X or mousePos.X > absPos.X + absSize.X or
+           mousePos.Y < absPos.Y or mousePos.Y > absPos.Y + absSize.Y then
+            dropdownFrame.Visible = false
+            arrow.Text = "▼"
+        end
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement and mainFrame.Active then
+        local newPos = mainFrame.Position
+        dropdownFrame.Position = UDim2.new(0, 0, 1, 5)
+    end
+end)
+
+coreStats.Pollen.Changed:Connect(function(newPollen)
+    local cap = coreStats.Capacity.Value
+    local pollenText = "Pollen: " .. math.floor(newPollen) .. " / " .. math.floor(cap)
+    pollenLabel.Text = pollenText
+    local ratio = cap > 0 and newPollen / cap or 0
+    pollenBarFG.Size = UDim2.new(math.clamp(ratio, 0, 1), 0, 1, 0)
+end)
+
+coreStats.Capacity.Changed:Connect(function(newCap)
+    local pollenText = "Pollen: " .. math.floor(coreStats.Pollen.Value) .. " / " .. math.floor(newCap)
+    pollenLabel.Text = pollenText
+    local ratio = newCap > 0 and coreStats.Pollen.Value / newCap or 0
+    pollenBarFG.Size = UDim2.new(math.clamp(ratio, 0, 1), 0, 1, 0)
+end)
+ 
